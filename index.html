@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gang Pool Manager v3</title>
+  <title>Gang Pool Manager v4 Shared</title>
   <style>
     :root {
       --bg: #0b0d12;
@@ -68,6 +68,25 @@
       padding: 16px 20px;
       min-width: 260px;
     }
+
+    .sync-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .sync-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--warning);
+    }
+
+    .sync-status.connected .sync-dot { background: var(--success); }
+    .sync-status.error .sync-dot { background: var(--danger); }
 
     .balance-card span {
       display: block;
@@ -429,7 +448,7 @@
   <main class="app">
     <header>
       <div class="title">
-        <h1>Gang Pool Manager v3</h1>
+        <h1>Gang Pool Manager v4 Shared</h1>
         <p>犯罪利益・メンバー報酬・ギャングプール管理</p>
       </div>
       <div class="balance-card">
@@ -628,47 +647,49 @@
 
         <div class="card full">
           <h2>データ管理</h2>
-          <p class="muted">現在の初版では、このブラウザ内にデータを保存します。</p>
+          <p class="muted">この操作はSupabase上の共有データを全削除します。全メンバーに反映されます。</p>
           <button id="resetBtn" class="btn danger" type="button">全データを初期化</button>
         </div>
       </div>
     </section>
   </main>
 
-  <script>
-    const STORAGE_KEY = "gangPoolManager_v1";
 
-    const defaultState = {
-      members: ["アルロッド", "メンバーA", "メンバーB"],
-      crimes: ["コンビニ強盗", "銀行強盗", "客船強盗", "宝石店強盗"],
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://hufgikfjmieckujjpogh.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_QSa1VTXIKwFPa7UO_9AHog_AneCwZ2b';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const state = {
+      members: [],
+      memberRows: [],
+      crimes: [],
+      crimeRows: [],
       poolBalance: 0,
       poolHistory: [],
       crimeHistory: []
     };
 
-    let state = loadState();
     let lastCalculation = null;
     let rankingPeriod = "all";
+    let isBusy = false;
 
-    function loadState() {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        return saved ? JSON.parse(saved) : structuredClone(defaultState);
-      } catch {
-        return structuredClone(defaultState);
-      }
-    }
-
-    function saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    function setStatus(type, text) {
+      const box = document.getElementById("syncStatus");
+      box.classList.remove("connected", "error");
+      if (type) box.classList.add(type);
+      document.getElementById("syncStatusText").textContent = text;
     }
 
     function yen(value) {
       return "¥" + Math.floor(Number(value) || 0).toLocaleString("ja-JP");
     }
 
-    function nowText() {
-      return new Date().toLocaleString("ja-JP");
+    function formatDate(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("ja-JP");
     }
 
     function escapeHtml(text) {
@@ -683,6 +704,83 @@
     function selectedValues(containerId) {
       return [...document.querySelectorAll(`#${containerId} input:checked`)]
         .map(input => input.value);
+    }
+
+    function showError(error, fallback = "処理に失敗しました。") {
+      console.error(error);
+      const message = error?.message || fallback;
+      setStatus("error", "接続または保存でエラー");
+      alert(`${fallback}
+
+${message}`);
+    }
+
+    async function loadAllData(showLoading = true) {
+      if (showLoading) setStatus("", "Supabaseから同期中…");
+
+      const [
+        membersResult,
+        crimesResult,
+        crimeRecordsResult,
+        poolResult
+      ] = await Promise.all([
+        db.from("members").select("*").order("created_at", { ascending: true }),
+        db.from("crime_types").select("*").order("created_at", { ascending: true }),
+        db.from("crime_records").select("*").order("created_at", { ascending: true }),
+        db.from("pool_transactions").select("*").order("created_at", { ascending: true })
+      ]);
+
+      const failed = [membersResult, crimesResult, crimeRecordsResult, poolResult]
+        .find(result => result.error);
+
+      if (failed) throw failed.error;
+
+      state.memberRows = membersResult.data || [];
+      state.members = state.memberRows.map(row => row.name);
+
+      state.crimeRows = crimesResult.data || [];
+      state.crimes = state.crimeRows.map(row => row.name);
+
+      state.crimeHistory = (crimeRecordsResult.data || []).map(row => ({
+        id: row.id,
+        crime: row.crime,
+        participants: Array.isArray(row.participants) ? row.participants : [],
+        arrested: Array.isArray(row.arrested) ? row.arrested : [],
+        gross: Number(row.gross) || 0,
+        fine: Number(row.fine) || 0,
+        net: Number(row.net) || 0,
+        poolShares: Number(row.pool_shares) || 0,
+        totalShares: Number(row.total_shares) || 0,
+        perPerson: Number(row.per_person) || 0,
+        poolDeposit: Number(row.pool_deposit) || 0,
+        remainder: Number(row.remainder) || 0,
+        createdAt: row.created_at,
+        date: formatDate(row.created_at)
+      }));
+
+      state.poolHistory = (poolResult.data || []).map(row => ({
+        id: row.id,
+        type: row.transaction_type,
+        amount: Number(row.amount) || 0,
+        reason: row.reason || "理由なし",
+        member: row.member || "",
+        createdAt: row.created_at,
+        date: formatDate(row.created_at),
+        balanceAfter: Number(row.balance_after) || 0
+      }));
+
+      state.poolBalance = state.poolHistory.reduce((total, item) => {
+        return total + (item.type === "deposit" ? item.amount : -item.amount);
+      }, 0);
+
+      let runningBalance = 0;
+      state.poolHistory.forEach(item => {
+        runningBalance += item.type === "deposit" ? item.amount : -item.amount;
+        item.balanceAfter = runningBalance;
+      });
+
+      renderAll();
+      setStatus("connected", `共有データ同期済み・${new Date().toLocaleTimeString("ja-JP")}`);
     }
 
     function renderAll() {
@@ -746,38 +844,40 @@
 
     function renderSettings() {
       const memberList = document.getElementById("memberSettingsList");
-      memberList.innerHTML = state.members.length
-        ? state.members.map((name, index) => `
+      memberList.innerHTML = state.memberRows.length
+        ? state.memberRows.map(row => `
             <div class="list-row">
-              <span>${escapeHtml(name)}</span>
-              <button class="remove-btn" data-member-index="${index}" type="button">−</button>
+              <span>${escapeHtml(row.name)}</span>
+              <button class="remove-btn" data-member-id="${row.id}" type="button">−</button>
             </div>
           `).join("")
         : `<div class="empty">登録メンバーなし</div>`;
 
       const crimeList = document.getElementById("crimeSettingsList");
-      crimeList.innerHTML = state.crimes.length
-        ? state.crimes.map((name, index) => `
+      crimeList.innerHTML = state.crimeRows.length
+        ? state.crimeRows.map(row => `
             <div class="list-row">
-              <span>${escapeHtml(name)}</span>
-              <button class="remove-btn" data-crime-index="${index}" type="button">−</button>
+              <span>${escapeHtml(row.name)}</span>
+              <button class="remove-btn" data-crime-id="${row.id}" type="button">−</button>
             </div>
           `).join("")
         : `<div class="empty">登録犯罪なし</div>`;
 
-      document.querySelectorAll("[data-member-index]").forEach(btn => {
-        btn.addEventListener("click", () => {
-          state.members.splice(Number(btn.dataset.memberIndex), 1);
-          saveState();
-          renderAll();
+      document.querySelectorAll("[data-member-id]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("このメンバーを共有リストから削除しますか？過去の犯罪履歴は残ります。")) return;
+          const { error } = await db.from("members").delete().eq("id", btn.dataset.memberId);
+          if (error) return showError(error, "メンバーを削除できませんでした。");
+          await loadAllData(false);
         });
       });
 
-      document.querySelectorAll("[data-crime-index]").forEach(btn => {
-        btn.addEventListener("click", () => {
-          state.crimes.splice(Number(btn.dataset.crimeIndex), 1);
-          saveState();
-          renderAll();
+      document.querySelectorAll("[data-crime-id]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("この犯罪種類を共有リストから削除しますか？過去の犯罪履歴は残ります。")) return;
+          const { error } = await db.from("crime_types").delete().eq("id", btn.dataset.crimeId);
+          if (error) return showError(error, "犯罪種類を削除できませんでした。");
+          await loadAllData(false);
         });
       });
     }
@@ -787,7 +887,7 @@
       const fine = Math.max(0, Number(document.getElementById("fineAmount").value) || 0);
       const participants = selectedValues("participantList");
       const arrested = selectedValues("arrestedList");
-      const poolShares = Number(document.getElementById("poolShares").value) || 0;
+      const poolShares = Math.max(0, Number(document.getElementById("poolShares").value) || 0);
 
       const net = Math.max(0, gross - fine);
       const totalShares = participants.length + poolShares;
@@ -879,22 +979,19 @@
       `).join("");
     }
 
-
-    function parseRecordDate(dateText) {
-      const parsed = new Date(dateText);
+    function parseRecordDate(record) {
+      const parsed = new Date(record.createdAt || record.date);
       return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
 
     function getRankingRecords() {
-      if (rankingPeriod === "all") {
-        return state.crimeHistory;
-      }
+      if (rankingPeriod === "all") return state.crimeHistory;
 
       const now = new Date();
       const cutoff = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
 
       return state.crimeHistory.filter(record => {
-        const recordDate = parseRecordDate(record.date);
+        const recordDate = parseRecordDate(record);
         return recordDate && recordDate >= cutoff && recordDate <= now;
       });
     }
@@ -902,43 +999,28 @@
     function createBaseMemberStats() {
       const stats = {};
       state.members.forEach(name => {
-        stats[name] = {
-          arrests: 0,
-          successes: 0,
-          poolContribution: 0
-        };
+        stats[name] = { arrests: 0, successes: 0, poolContribution: 0 };
       });
 
       getRankingRecords().forEach(record => {
         (record.participants || []).forEach(name => {
-          if (!stats[name]) {
-            stats[name] = { arrests: 0, successes: 0, poolContribution: 0 };
-          }
+          if (!stats[name]) stats[name] = { arrests: 0, successes: 0, poolContribution: 0 };
           stats[name].successes += 1;
         });
 
         (record.arrested || []).forEach(name => {
-          if (!stats[name]) {
-            stats[name] = { arrests: 0, successes: 0, poolContribution: 0 };
-          }
+          if (!stats[name]) stats[name] = { arrests: 0, successes: 0, poolContribution: 0 };
           stats[name].arrests += 1;
         });
 
         const participantCount = (record.participants || []).length;
         if (participantCount > 0 && Number(record.poolDeposit) > 0) {
-          const contributionPerMember = Math.floor(Number(record.poolDeposit) / participantCount);
-          let remainder = Number(record.poolDeposit) - (contributionPerMember * participantCount);
+          const each = Math.floor(Number(record.poolDeposit) / participantCount);
+          const remainder = Number(record.poolDeposit) - each * participantCount;
 
           (record.participants || []).forEach((name, index) => {
-            if (!stats[name]) {
-              stats[name] = { arrests: 0, successes: 0, poolContribution: 0 };
-            }
-
-            stats[name].poolContribution += contributionPerMember;
-
-            if (index === 0 && remainder > 0) {
-              stats[name].poolContribution += remainder;
-            }
+            if (!stats[name]) stats[name] = { arrests: 0, successes: 0, poolContribution: 0 };
+            stats[name].poolContribution += each + (index === 0 ? remainder : 0);
           });
         }
       });
@@ -947,9 +1029,7 @@
     }
 
     function rankingHtml(entries, valueFormatter) {
-      if (!entries.length) {
-        return `<div class="empty">ランキングデータはまだありません</div>`;
-      }
+      if (!entries.length) return `<div class="empty">ランキングデータはまだありません</div>`;
 
       return entries.map(([name, value], index) => `
         <div class="ranking-row">
@@ -983,15 +1063,13 @@
 
       document.getElementById("arrestRanking").innerHTML =
         rankingHtml(arrestEntries, value => `${value}回`);
-
       document.getElementById("successRanking").innerHTML =
         rankingHtml(successEntries, value => `${value}回`);
-
       document.getElementById("poolContributionRanking").innerHTML =
         rankingHtml(poolEntries, value => yen(value));
     }
 
-    function addPoolTransaction(type, amount, reason, member = "") {
+    async function addPoolTransaction(type, amount, reason, member = "") {
       amount = Math.floor(Number(amount));
 
       if (!Number.isFinite(amount) || amount <= 0) {
@@ -999,36 +1077,37 @@
         return false;
       }
 
+      await loadAllData(false);
+
       if (type === "withdraw" && amount > state.poolBalance) {
         alert("プール残高が不足しています。");
         return false;
       }
 
-      state.poolBalance += type === "deposit" ? amount : -amount;
-
-      state.poolHistory.push({
-        type,
+      const nextBalance = state.poolBalance + (type === "deposit" ? amount : -amount);
+      const { error } = await db.from("pool_transactions").insert({
+        transaction_type: type,
         amount,
         reason: reason.trim() || "理由なし",
         member,
-        date: nowText(),
-        balanceAfter: state.poolBalance
+        balance_after: nextBalance
       });
 
-      saveState();
-      renderAll();
+      if (error) {
+        showError(error, "入出金を保存できませんでした。");
+        return false;
+      }
+
+      await loadAllData(false);
       return true;
     }
-
 
     document.querySelectorAll(".period-btn").forEach(button => {
       button.addEventListener("click", () => {
         rankingPeriod = button.dataset.period;
-
         document.querySelectorAll(".period-btn").forEach(btn => {
           btn.classList.toggle("active", btn === button);
         });
-
         renderRankings();
       });
     });
@@ -1042,30 +1121,32 @@
       });
     });
 
-    document.getElementById("addMemberBtn").addEventListener("click", () => {
+    document.getElementById("addMemberBtn").addEventListener("click", async () => {
       const input = document.getElementById("memberName");
       const name = input.value.trim();
 
       if (!name) return alert("メンバー名を入力してください。");
       if (state.members.includes(name)) return alert("同じ名前が登録されています。");
 
-      state.members.push(name);
+      const { error } = await db.from("members").insert({ name });
+      if (error) return showError(error, "メンバーを登録できませんでした。");
+
       input.value = "";
-      saveState();
-      renderAll();
+      await loadAllData(false);
     });
 
-    document.getElementById("addCrimeBtn").addEventListener("click", () => {
+    document.getElementById("addCrimeBtn").addEventListener("click", async () => {
       const input = document.getElementById("crimeName");
       const name = input.value.trim();
 
       if (!name) return alert("犯罪名を入力してください。");
       if (state.crimes.includes(name)) return alert("同じ犯罪名が登録されています。");
 
-      state.crimes.push(name);
+      const { error } = await db.from("crime_types").insert({ name });
+      if (error) return showError(error, "犯罪種類を登録できませんでした。");
+
       input.value = "";
-      saveState();
-      renderAll();
+      await loadAllData(false);
     });
 
     ["grossAmount", "fineAmount", "poolShares", "crimeType"].forEach(id => {
@@ -1075,7 +1156,8 @@
 
     document.getElementById("calculateBtn").addEventListener("click", calculateCrime);
 
-    document.getElementById("saveCrimeBtn").addEventListener("click", () => {
+    document.getElementById("saveCrimeBtn").addEventListener("click", async () => {
+      if (isBusy) return;
       calculateCrime();
 
       if (!lastCalculation.crime) return alert("犯罪名を登録・選択してください。");
@@ -1083,65 +1165,96 @@
       if (lastCalculation.gross <= 0) return alert("利確金額を入力してください。");
       if (lastCalculation.net <= 0) return alert("純利益が0円以下です。");
 
-      const record = {
-        ...lastCalculation,
-        date: nowText()
-      };
+      isBusy = true;
+      setStatus("", "犯罪記録を保存中…");
 
-      state.crimeHistory.push(record);
+      try {
+        await loadAllData(false);
 
-      if (record.poolDeposit > 0) {
-        state.poolBalance += record.poolDeposit;
-        state.poolHistory.push({
-          type: "deposit",
-          amount: record.poolDeposit,
-          reason: `${record.crime} プール分`,
-          member: "",
-          date: record.date,
-          balanceAfter: state.poolBalance
+        const { error: crimeError } = await db.from("crime_records").insert({
+          crime: lastCalculation.crime,
+          participants: lastCalculation.participants,
+          arrested: lastCalculation.arrested,
+          gross: lastCalculation.gross,
+          fine: lastCalculation.fine,
+          net: lastCalculation.net,
+          pool_shares: lastCalculation.poolShares,
+          total_shares: lastCalculation.totalShares,
+          per_person: lastCalculation.perPerson,
+          pool_deposit: lastCalculation.poolDeposit,
+          remainder: lastCalculation.remainder
         });
+
+        if (crimeError) throw crimeError;
+
+        if (lastCalculation.poolDeposit > 0) {
+          const nextBalance = state.poolBalance + lastCalculation.poolDeposit;
+          const { error: poolError } = await db.from("pool_transactions").insert({
+            transaction_type: "deposit",
+            amount: lastCalculation.poolDeposit,
+            reason: `${lastCalculation.crime} プール分`,
+            member: "",
+            balance_after: nextBalance
+          });
+
+          if (poolError) throw poolError;
+        }
+
+        document.getElementById("grossAmount").value = "";
+        document.getElementById("fineAmount").value = "";
+
+        await loadAllData(false);
+        alert("犯罪記録を全メンバー共有データへ保存しました。");
+      } catch (error) {
+        showError(error, "犯罪記録を保存できませんでした。");
+      } finally {
+        isBusy = false;
       }
-
-      saveState();
-
-      document.getElementById("grossAmount").value = "";
-      document.getElementById("fineAmount").value = "";
-      document.querySelectorAll("#participantList input, #arrestedList input")
-        .forEach(input => input.checked = false);
-
-      renderAll();
-      alert("犯罪記録を保存しました。");
     });
 
-    document.getElementById("depositBtn").addEventListener("click", () => {
+    document.getElementById("depositBtn").addEventListener("click", async () => {
       const amount = document.getElementById("depositAmount").value;
       const reason = document.getElementById("depositReason").value;
 
-      if (addPoolTransaction("deposit", amount, reason)) {
+      if (await addPoolTransaction("deposit", amount, reason)) {
         document.getElementById("depositAmount").value = "";
         document.getElementById("depositReason").value = "";
       }
     });
 
-    document.getElementById("withdrawBtn").addEventListener("click", () => {
+    document.getElementById("withdrawBtn").addEventListener("click", async () => {
       const amount = document.getElementById("withdrawAmount").value;
       const reason = document.getElementById("withdrawReason").value;
       const member = document.getElementById("withdrawMember").value;
 
-      if (addPoolTransaction("withdraw", amount, reason, member)) {
+      if (await addPoolTransaction("withdraw", amount, reason, member)) {
         document.getElementById("withdrawAmount").value = "";
         document.getElementById("withdrawReason").value = "";
         document.getElementById("withdrawMember").value = "";
       }
     });
 
-    document.getElementById("resetBtn").addEventListener("click", () => {
-      const ok = confirm("本当に全データを初期化しますか？この操作は戻せません。");
-      if (!ok) return;
+    document.getElementById("resetBtn").addEventListener("click", async () => {
+      const first = confirm("本当に共有データを全削除しますか？全メンバーの画面から消えます。");
+      if (!first) return;
 
-      state = structuredClone(defaultState);
-      saveState();
-      renderAll();
+      const second = prompt('確認のため「全削除」と入力してください。');
+      if (second !== "全削除") return alert("入力が一致しなかったため中止しました。");
+
+      try {
+        setStatus("", "共有データを削除中…");
+
+        const tables = ["pool_transactions", "crime_records", "crime_types", "members"];
+        for (const table of tables) {
+          const { error } = await db.from(table).delete().not("id", "is", null);
+          if (error) throw error;
+        }
+
+        await loadAllData(false);
+        alert("共有データを全削除しました。");
+      } catch (error) {
+        showError(error, "全データを削除できませんでした。");
+      }
     });
 
     document.getElementById("memberName").addEventListener("keydown", event => {
@@ -1152,7 +1265,24 @@
       if (event.key === "Enter") document.getElementById("addCrimeBtn").click();
     });
 
-    renderAll();
+    async function initialize() {
+      try {
+        await loadAllData();
+      } catch (error) {
+        showError(error, "Supabaseへ接続できませんでした。SQL設定と接続情報を確認してください。");
+      }
+
+      setInterval(async () => {
+        try {
+          await loadAllData(false);
+        } catch (error) {
+          console.error(error);
+          setStatus("error", "自動同期に失敗");
+        }
+      }, 15000);
+    }
+
+    initialize();
   </script>
 </body>
 </html>
