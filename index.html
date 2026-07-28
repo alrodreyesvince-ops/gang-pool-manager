@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gang Pool Manager v4 Shared</title>
+  <title>Gang Pool Manager v4.1 Shared</title>
   <style>
     :root {
       --bg: #0b0d12;
@@ -448,7 +448,7 @@
   <main class="app">
     <header>
       <div class="title">
-        <h1>Gang Pool Manager v4 Shared</h1>
+        <h1>Gang Pool Manager v4.1 Shared</h1>
         <p>犯罪利益・メンバー報酬・ギャングプール管理</p>
       </div>
       <div class="balance-card">
@@ -655,11 +655,128 @@
   </main>
 
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_URL = 'https://hufgikfjmieckujjpogh.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_QSa1VTXIKwFPa7UO_9AHog_AneCwZ2b';
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // 外部ライブラリを使わず、Supabase REST APIへ直接接続する軽量クライアント
+    class SupabaseQuery {
+      constructor(table) {
+        this.table = table;
+        this.method = "GET";
+        this.payload = null;
+        this.params = new URLSearchParams();
+      }
+
+      select(columns = "*") {
+        this.params.set("select", columns);
+        return this;
+      }
+
+      order(column, options = {}) {
+        const direction = options.ascending === false ? "desc" : "asc";
+        this.params.append("order", `${column}.${direction}`);
+        return this;
+      }
+
+      insert(payload) {
+        this.method = "POST";
+        this.payload = Array.isArray(payload) ? payload : [payload];
+        return this;
+      }
+
+      delete() {
+        this.method = "DELETE";
+        return this;
+      }
+
+      eq(column, value) {
+        this.params.append(column, `eq.${value}`);
+        return this;
+      }
+
+      not(column, operator, value) {
+        this.params.append(column, `not.${operator}.${value}`);
+        return this;
+      }
+
+      async execute() {
+        const query = this.params.toString();
+        const url = `${SUPABASE_URL}/rest/v1/${encodeURIComponent(this.table)}${query ? `?${query}` : ""}`;
+
+        const headers = {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          Accept: "application/json"
+        };
+
+        if (this.method === "POST") {
+          headers["Content-Type"] = "application/json";
+          headers.Prefer = "return=representation";
+        }
+
+        if (this.method === "DELETE") {
+          headers.Prefer = "return=representation";
+        }
+
+        try {
+          const response = await fetch(url, {
+            method: this.method,
+            headers,
+            body: this.payload ? JSON.stringify(this.payload) : undefined
+          });
+
+          const text = await response.text();
+          let data = null;
+
+          if (text) {
+            try {
+              data = JSON.parse(text);
+            } catch {
+              data = text;
+            }
+          }
+
+          if (!response.ok) {
+            const message =
+              data?.message ||
+              data?.details ||
+              `HTTP ${response.status} ${response.statusText}`;
+
+            return {
+              data: null,
+              error: {
+                message,
+                status: response.status,
+                details: data
+              }
+            };
+          }
+
+          return {
+            data: data || [],
+            error: null
+          };
+        } catch (error) {
+          return {
+            data: null,
+            error: {
+              message: error.message || "ネットワーク通信に失敗しました。"
+            }
+          };
+        }
+      }
+
+      then(resolve, reject) {
+        return this.execute().then(resolve, reject);
+      }
+    }
+
+    const db = {
+      from(table) {
+        return new SupabaseQuery(table);
+      }
+    };
 
     const state = {
       members: [],

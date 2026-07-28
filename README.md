@@ -1,27 +1,25 @@
-# Gang Pool Manager v4 Shared
+# Gang Pool Manager v4.1 Shared Fixed
 
-Supabaseを使用した全メンバー共有版です。
+## 修正内容
 
-## 接続先
+v4 Sharedで、Supabaseの外部JavaScriptライブラリが読み込めない場合に、
+「＋追加」などのボタン処理がすべて止まる問題を修正しました。
 
-- Project URL: https://hufgikfjmieckujjpogh.supabase.co
-- ブラウザ用 Publishable key を使用
+この版では外部Supabaseライブラリを使用せず、
+ブラウザ標準のfetch機能でSupabase REST APIへ直接接続します。
 
-## 主な仕様
+## GitHubでの更新方法
 
-- メンバー一覧を全員で共有
-- 犯罪種類を全員で共有
-- 犯罪履歴を全員で共有
-- プール残高と入出金履歴を全員で共有
-- 総合／直近7日間ランキングを全員で共有
-- 15秒ごとに自動同期
-- ページ再読み込みでもSupabaseから最新状態を取得
+1. GitHubのgang-pool-managerリポジトリを開く
+2. 既存のindex.htmlを開く
+3. 右上の鉛筆アイコン、またはAdd file → Upload files
+4. このフォルダのindex.htmlで上書き
+5. Commit changes
+6. GitHub PagesをCtrl + F5で完全更新
 
-## GitHubにアップロードするファイル
+## 確認項目
 
-`index.html` をリポジトリの一番上（ルート）へアップロードしてください。
-
-## 注意
-
-ログインと権限分けがないため、サイトを利用できる人は全員が追加・削除・入出金できます。
-`service_role` や Secret key は使用していません。
+- 画面上部に「共有データ同期済み」と表示される
+- メンバーを追加できる
+- 犯罪種類を追加できる
+- 別端末にも追加内容が表示される
