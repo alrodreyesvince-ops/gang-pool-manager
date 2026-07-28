@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gang Pool Manager v4.1 Shared</title>
+  <title>Gang Pool Manager v4.2 Shared</title>
   <style>
     :root {
       --bg: #0b0d12;
@@ -448,7 +448,7 @@
   <main class="app">
     <header>
       <div class="title">
-        <h1>Gang Pool Manager v4.1 Shared</h1>
+        <h1>Gang Pool Manager v4.2 Shared</h1>
         <p>犯罪利益・メンバー報酬・ギャングプール管理</p>
       </div>
       <div class="balance-card">
@@ -706,7 +706,6 @@
 
         const headers = {
           apikey: SUPABASE_KEY,
-          Authorization: `Bearer ${SUPABASE_KEY}`,
           Accept: "application/json"
         };
 
@@ -1239,31 +1238,53 @@ ${message}`);
     });
 
     document.getElementById("addMemberBtn").addEventListener("click", async () => {
+      const button = document.getElementById("addMemberBtn");
       const input = document.getElementById("memberName");
       const name = input.value.trim();
 
       if (!name) return alert("メンバー名を入力してください。");
       if (state.members.includes(name)) return alert("同じ名前が登録されています。");
 
-      const { error } = await db.from("members").insert({ name });
-      if (error) return showError(error, "メンバーを登録できませんでした。");
+      setButtonBusy(button, true, "追加中…");
+      setStatus("", "メンバーを追加中…");
 
-      input.value = "";
-      await loadAllData(false);
+      try {
+        const { error } = await db.from("members").insert({ name });
+        if (error) throw error;
+
+        input.value = "";
+        await loadAllData(false);
+        alert(`「${name}」を追加しました。`);
+      } catch (error) {
+        showError(error, "メンバーを登録できませんでした。");
+      } finally {
+        setButtonBusy(button, false);
+      }
     });
 
     document.getElementById("addCrimeBtn").addEventListener("click", async () => {
+      const button = document.getElementById("addCrimeBtn");
       const input = document.getElementById("crimeName");
       const name = input.value.trim();
 
       if (!name) return alert("犯罪名を入力してください。");
       if (state.crimes.includes(name)) return alert("同じ犯罪名が登録されています。");
 
-      const { error } = await db.from("crime_types").insert({ name });
-      if (error) return showError(error, "犯罪種類を登録できませんでした。");
+      setButtonBusy(button, true, "追加中…");
+      setStatus("", "犯罪種類を追加中…");
 
-      input.value = "";
-      await loadAllData(false);
+      try {
+        const { error } = await db.from("crime_types").insert({ name });
+        if (error) throw error;
+
+        input.value = "";
+        await loadAllData(false);
+        alert(`「${name}」を追加しました。`);
+      } catch (error) {
+        showError(error, "犯罪種類を登録できませんでした。");
+      } finally {
+        setButtonBusy(button, false);
+      }
     });
 
     ["grossAmount", "fineAmount", "poolShares", "crimeType"].forEach(id => {
@@ -1283,6 +1304,8 @@ ${message}`);
       if (lastCalculation.net <= 0) return alert("純利益が0円以下です。");
 
       isBusy = true;
+      const saveButton = document.getElementById("saveCrimeBtn");
+      setButtonBusy(saveButton, true, "保存中…");
       setStatus("", "犯罪記録を保存中…");
 
       try {
@@ -1326,6 +1349,7 @@ ${message}`);
         showError(error, "犯罪記録を保存できませんでした。");
       } finally {
         isBusy = false;
+        setButtonBusy(document.getElementById("saveCrimeBtn"), false);
       }
     });
 

@@ -1,25 +1,24 @@
-# Gang Pool Manager v4.1 Shared Fixed
+# Gang Pool Manager v4.2 Shared Fixed
 
 ## 修正内容
 
-v4 Sharedで、Supabaseの外部JavaScriptライブラリが読み込めない場合に、
-「＋追加」などのボタン処理がすべて止まる問題を修正しました。
+Supabaseの新しいPublishable keyをAuthorization Bearerへ入れていたため、
+追加・犯罪保存・プール入金が拒否される問題を修正しました。
 
-この版では外部Supabaseライブラリを使用せず、
-ブラウザ標準のfetch機能でSupabase REST APIへ直接接続します。
+この版ではPublishable keyを `apikey` ヘッダーだけに設定します。
 
-## GitHubでの更新方法
+## 更新手順
 
-1. GitHubのgang-pool-managerリポジトリを開く
-2. 既存のindex.htmlを開く
-3. 右上の鉛筆アイコン、またはAdd file → Upload files
-4. このフォルダのindex.htmlで上書き
-5. Commit changes
-6. GitHub PagesをCtrl + F5で完全更新
+1. GitHubのリポジトリを開く
+2. Add file → Upload files
+3. このindex.htmlをアップロードして既存ファイルを上書き
+4. Commit changes
+5. 公開サイトでCtrl + F5
+6. 画面タイトルが「Gang Pool Manager v4.2 Shared」になっていることを確認
 
-## 確認項目
+## 動作確認
 
-- 画面上部に「共有データ同期済み」と表示される
-- メンバーを追加できる
-- 犯罪種類を追加できる
-- 別端末にも追加内容が表示される
+- メンバー追加時に「追加中…」と表示
+- 成功すると追加完了のメッセージ
+- 犯罪種類追加時に「追加中…」と表示
+- 犯罪記録保存時に「保存中…」と表示
