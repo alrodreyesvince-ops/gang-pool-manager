@@ -1,1441 +1,589 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gang Pool Manager v4.3 Shared</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gang Pool Manager v5 Shared</title>
   <style>
     :root {
-      --bg: #0b0d12;
-      --panel: #151923;
-      --panel2: #1c2230;
-      --text: #f4f7fb;
-      --muted: #aab2c0;
-      --border: #2b3445;
-      --accent: #8b5cf6;
-      --accent2: #6d28d9;
-      --danger: #ef4444;
-      --success: #22c55e;
-      --warning: #f59e0b;
+      --bg:#090c12; --panel:#151a24; --panel2:#1d2431; --line:#2c3648;
+      --text:#f5f7ff; --muted:#aab4c8; --accent:#8b4df4; --accent2:#6f35da;
+      --danger:#ef4444; --success:#22c55e; --warning:#f59e0b;
     }
-
-    * { box-sizing: border-box; }
-
+    * { box-sizing:border-box; }
     body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
+      margin:0; background:var(--bg); color:var(--text);
+      font-family:system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;
     }
-
-    button, input, select {
-      font: inherit;
+    button,input,select { font:inherit; }
+    button { cursor:pointer; }
+    .wrap { width:min(1100px,calc(100% - 28px)); margin:0 auto; }
+    header { padding:18px 0 8px; }
+    .head-grid { display:grid; grid-template-columns:1fr 260px; gap:18px; align-items:start; }
+    h1 { margin:0 0 6px; font-size:28px; }
+    .subtitle { color:var(--muted); margin:0; }
+    .status { margin-top:10px; display:flex; align-items:center; gap:8px; color:var(--muted); font-size:14px; }
+    .dot { width:10px; height:10px; border-radius:50%; background:var(--warning); }
+    .status.ok .dot { background:var(--success); }
+    .status.error .dot { background:var(--danger); }
+    .balance {
+      background:linear-gradient(135deg,var(--accent),var(--accent2)); border-radius:16px;
+      padding:15px 20px; min-height:82px;
     }
-
-    button {
-      cursor: pointer;
-    }
-
-    .app {
-      width: min(1100px, 100%);
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 18px;
-      flex-wrap: wrap;
-    }
-
-    .title h1 {
-      margin: 0;
-      font-size: 28px;
-    }
-
-    .title p {
-      margin: 5px 0 0;
-      color: var(--muted);
-    }
-
-    .balance-card {
-      background: linear-gradient(135deg, var(--accent2), var(--accent));
-      border-radius: 16px;
-      padding: 16px 20px;
-      min-width: 260px;
-    }
-
-    .sync-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .sync-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 999px;
-      background: var(--warning);
-    }
-
-    .sync-status.connected .sync-dot { background: var(--success); }
-    .sync-status.error .sync-dot { background: var(--danger); }
-
-    .balance-card span {
-      display: block;
-      font-size: 13px;
-      opacity: .85;
-    }
-
-    .balance-card strong {
-      display: block;
-      font-size: 28px;
-      margin-top: 3px;
-    }
-
-    .tabs {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 18px;
-    }
-
+    .balance small { display:block; opacity:.9; }
+    .balance strong { display:block; font-size:29px; margin-top:4px; }
+    .tabs { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:10px 0 18px; }
     .tab-btn {
-      border: 1px solid var(--border);
-      background: var(--panel);
-      color: var(--muted);
-      border-radius: 12px;
-      padding: 12px;
+      border:1px solid var(--line); background:var(--panel); color:var(--text);
+      border-radius:12px; padding:13px 8px;
     }
-
-    .tab-btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: white;
-    }
-
-    .tab {
-      display: none;
-    }
-
-    .tab.active {
-      display: block;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 16px;
-    }
-
+    .tab-btn.active { background:var(--accent); border-color:var(--accent); }
+    .page { display:none; }
+    .page.active { display:block; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
     .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 18px;
+      background:var(--panel); border:1px solid var(--line); border-radius:16px;
+      padding:18px; margin-bottom:16px;
     }
-
-    .card.full {
-      grid-column: 1 / -1;
+    .card h2,.card h3 { margin:0 0 15px; }
+    label { display:block; color:var(--muted); margin-bottom:7px; font-size:14px; }
+    input,select {
+      width:100%; color:var(--text); background:var(--panel2); border:1px solid var(--line);
+      border-radius:10px; padding:12px 13px; outline:none;
     }
-
-    h2, h3 {
-      margin-top: 0;
-    }
-
-    .field {
-      margin-bottom: 14px;
-    }
-
-    .field label {
-      display: block;
-      margin-bottom: 7px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    input, select {
-      width: 100%;
-      background: var(--panel2);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 11px 12px;
-      outline: none;
-    }
-
-    input:focus, select:focus {
-      border-color: var(--accent);
-    }
-
-    .inline {
-      display: flex;
-      gap: 8px;
-    }
-
-    .inline input {
-      flex: 1;
-    }
-
+    input:focus,select:focus { border-color:var(--accent); }
+    .row { display:flex; gap:8px; align-items:center; }
+    .row input,.row select { flex:1; }
     .btn {
-      border: 0;
-      border-radius: 10px;
-      padding: 11px 14px;
-      background: var(--accent);
-      color: white;
+      border:0; border-radius:10px; padding:12px 16px; color:white;
+      background:var(--accent); white-space:nowrap;
     }
-
-    .btn:hover {
-      filter: brightness(1.08);
+    .btn:hover { background:var(--accent2); }
+    .btn:disabled { opacity:.55; cursor:not-allowed; }
+    .btn.secondary { background:#30394a; }
+    .btn.danger { background:var(--danger); }
+    .btn.full { width:100%; }
+    .checks { display:grid; grid-template-columns:repeat(auto-fill,minmax(145px,1fr)); gap:8px; }
+    .check {
+      display:flex; gap:8px; align-items:center; background:var(--panel2);
+      border:1px solid var(--line); border-radius:10px; padding:10px;
     }
-
-    .btn.secondary {
-      background: var(--panel2);
-      border: 1px solid var(--border);
-      color: var(--text);
-    }
-
-    .btn.danger {
-      background: var(--danger);
-    }
-
-    .btn.success {
-      background: var(--success);
-    }
-
-    .list {
-      display: grid;
-      gap: 8px;
-    }
-
+    .check input { width:auto; }
+    .result-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+    .result { background:var(--panel2); border-radius:12px; padding:13px; }
+    .result span { display:block; color:var(--muted); font-size:13px; }
+    .result strong { display:block; margin-top:4px; font-size:20px; }
+    .list { display:grid; gap:8px; }
     .list-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      background: var(--panel2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px 12px;
+      background:var(--panel2); border:1px solid var(--line); border-radius:10px;
+      padding:11px 12px; display:flex; justify-content:space-between; gap:12px; align-items:center;
     }
-
-    .remove-btn {
-      border: 0;
-      background: var(--danger);
-      color: white;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      font-weight: bold;
-    }
-
-    .check-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .check-item {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      background: var(--panel2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
-    }
-
-    .check-item input {
-      width: auto;
-      accent-color: var(--accent);
-    }
-
-    .result {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    .metric {
-      background: var(--panel2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 13px;
-    }
-
-    .metric span {
-      display: block;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .metric strong {
-      display: block;
-      margin-top: 4px;
-      font-size: 20px;
-    }
-
-    .history {
-      display: grid;
-      gap: 10px;
-    }
-
-    .history-row {
-      background: var(--panel2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 13px;
-    }
-
-    .history-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .plus { color: var(--success); }
-    .minus { color: var(--danger); }
-
-    .muted {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .empty {
-      color: var(--muted);
-      text-align: center;
-      padding: 20px;
-      border: 1px dashed var(--border);
-      border-radius: 12px;
-    }
-
-    .notice {
-      background: rgba(139, 92, 246, .12);
-      border: 1px solid rgba(139, 92, 246, .4);
-      border-radius: 12px;
-      padding: 12px;
-      color: #ddd6fe;
-      margin-bottom: 14px;
-    }
-
-
-
-    .ranking-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
-    }
-
-    .period-switch {
-      display: inline-flex;
-      gap: 6px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 5px;
-    }
-
-    .period-btn {
-      border: 0;
-      border-radius: 8px;
-      padding: 9px 14px;
-      background: transparent;
-      color: var(--muted);
-    }
-
-    .period-btn.active {
-      background: var(--accent);
-      color: white;
-    }
-
-    .period-note {
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .ranking-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
-    }
-
-    .ranking-list {
-      display: grid;
-      gap: 9px;
-    }
-
-    .ranking-row {
-      display: grid;
-      grid-template-columns: 42px 1fr auto;
-      align-items: center;
-      gap: 10px;
-      background: var(--panel2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 11px 12px;
-    }
-
-    .rank-number {
-      width: 32px;
-      height: 32px;
-      display: grid;
-      place-items: center;
-      border-radius: 50%;
-      background: var(--panel);
-      font-weight: 800;
-    }
-
-    .ranking-row:nth-child(1) .rank-number {
-      background: #fbbf24;
-      color: #111827;
-    }
-
-    .ranking-row:nth-child(2) .rank-number {
-      background: #cbd5e1;
-      color: #111827;
-    }
-
-    .ranking-row:nth-child(3) .rank-number {
-      background: #b45309;
-      color: white;
-    }
-
-    .ranking-value {
-      font-weight: 800;
-      white-space: nowrap;
-    }
-
-    @media (max-width: 760px) {
-      .grid, .result, .ranking-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .card.full {
-        grid-column: auto;
-      }
-
-      .check-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .tabs {
-        grid-template-columns: 1fr;
-      }
-
-      .balance-card {
-        width: 100%;
-      }
-
-      .inline {
-        flex-direction: column;
-      }
+    .muted { color:var(--muted); }
+    .history { background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:13px; }
+    .history + .history { margin-top:10px; }
+    .history-head { display:flex; justify-content:space-between; gap:12px; }
+    .plus { color:var(--success); }
+    .minus { color:#fb7185; }
+    .rank-row { display:grid; grid-template-columns:42px 1fr auto; gap:10px; align-items:center;
+      background:var(--panel2); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+    .rank-num { width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#30394a; }
+    .periods { display:flex; gap:8px; margin-bottom:14px; }
+    .period-btn { border:1px solid var(--line); background:var(--panel2); color:var(--text); border-radius:9px; padding:9px 13px; }
+    .period-btn.active { background:var(--accent); border-color:var(--accent); }
+    .message { display:none; margin:0 auto 14px; padding:12px 15px; border-radius:12px; }
+    .message.show { display:block; }
+    .message.success { background:#12351f; border:1px solid #238448; }
+    .message.error { background:#3b1519; border:1px solid #a82f3a; }
+    .empty { color:var(--muted); padding:12px 0; }
+    @media(max-width:800px) {
+      .head-grid,.grid2,.grid3 { grid-template-columns:1fr; }
+      .tabs { grid-template-columns:1fr 1fr; }
+      .result-grid { grid-template-columns:1fr 1fr; }
     }
   </style>
 </head>
 <body>
-  <main class="app">
-    <header>
-      <div class="title">
-        <h1>Gang Pool Manager v4.3 Shared</h1>
-        <p>犯罪利益・メンバー報酬・ギャングプール管理</p>
-        <div id="syncStatus" class="sync-status">
-          <span class="sync-dot"></span>
-          <span id="syncStatusText">共有データへ接続中…</span>
+  <header class="wrap">
+    <div class="head-grid">
+      <div>
+        <h1>Gang Pool Manager v5 Shared</h1>
+        <p class="subtitle">犯罪利益・メンバー報酬・ギャングプール管理</p>
+        <div id="syncStatus" class="status">
+          <span class="dot"></span><span id="syncText">Supabaseへ接続中…</span>
         </div>
       </div>
-      <div class="balance-card">
-        <span>現在のプール残高</span>
+      <div class="balance">
+        <small>現在のプール残高</small>
         <strong id="headerBalance">¥0</strong>
       </div>
-    </header>
+    </div>
+  </header>
 
+  <div id="message" class="message wrap"></div>
+
+  <main class="wrap">
     <nav class="tabs">
-      <button class="tab-btn active" data-tab="crime">犯罪利益計算</button>
-      <button class="tab-btn" data-tab="pool">ギャングプール</button>
-      <button class="tab-btn" data-tab="ranking">ランキング</button>
-      <button class="tab-btn" data-tab="settings">事前登録・設定</button>
+      <button class="tab-btn active" data-page="calc">犯罪利益計算</button>
+      <button class="tab-btn" data-page="pool">ギャングプール</button>
+      <button class="tab-btn" data-page="ranking">ランキング</button>
+      <button class="tab-btn" data-page="settings">事前登録・設定</button>
     </nav>
 
-    <section id="crime" class="tab active">
-      <div class="grid">
+    <section id="calc" class="page active">
+      <div class="grid2">
         <div class="card">
           <h2>犯罪情報</h2>
-
-          <div class="field">
-            <label for="crimeType">犯罪名</label>
-            <select id="crimeType"></select>
-          </div>
-
-          <div class="field">
-            <label>参加メンバー</label>
-            <div id="participantList" class="check-grid"></div>
-          </div>
-
-          <div class="field">
-            <label for="grossAmount">利確できた金額</label>
-            <input id="grossAmount" type="number" min="0" step="1" placeholder="例：3000000">
-          </div>
-
-          <div class="field">
-            <label>逮捕者</label>
-            <div id="arrestedList" class="check-grid"></div>
-          </div>
-
-          <div class="field">
-            <label for="fineAmount">総罰金額</label>
-            <input id="fineAmount" type="number" min="0" step="1" placeholder="例：600000">
-          </div>
-
-          <div class="field">
-            <label for="poolShares">プール金の口数</label>
-            <select id="poolShares">
-              <option value="0">なし</option>
-              <option value="1">1人分</option>
-              <option value="2" selected>2人分</option>
-              <option value="3">3人分</option>
-              <option value="4">4人分</option>
-              <option value="5">5人分</option>
-            </select>
-          </div>
-
-          <button id="calculateBtn" class="btn secondary" type="button">計算する</button>
+          <label>犯罪種類</label>
+          <select id="crimeSelect"></select>
+          <div style="height:12px"></div>
+          <label>利確金額</label>
+          <input id="gross" type="number" min="0" placeholder="0">
+          <div style="height:12px"></div>
+          <label>罰金総額</label>
+          <input id="fine" type="number" min="0" placeholder="0">
+          <div style="height:12px"></div>
+          <label>プール取り分（口数）</label>
+          <input id="poolShares" type="number" min="0" value="1">
         </div>
-
         <div class="card">
-          <h2>計算結果</h2>
-          <div class="notice">
-            純利益 ÷（参加人数＋プール口数）で、一人あたり報酬を計算します。
-          </div>
-
-          <div class="result">
-            <div class="metric">
-              <span>純利益</span>
-              <strong id="netProfit">¥0</strong>
-            </div>
-            <div class="metric">
-              <span>分配口数</span>
-              <strong id="totalShares">0口</strong>
-            </div>
-            <div class="metric">
-              <span>一人あたり報酬</span>
-              <strong id="perPerson">¥0</strong>
-            </div>
-            <div class="metric">
-              <span>プール入金額</span>
-              <strong id="poolDeposit">¥0</strong>
-            </div>
-          </div>
-
-          <div style="margin-top:14px">
-            <h3>参加メンバーへの報酬</h3>
-            <div id="rewardList" class="list"></div>
-          </div>
-
-          <button id="saveCrimeBtn" class="btn success" type="button" style="margin-top:16px;width:100%">
-            犯罪記録を保存してプールへ入金
-          </button>
+          <h2>参加メンバー</h2>
+          <div id="participants" class="checks"></div>
+          <h3 style="margin-top:18px">逮捕されたメンバー</h3>
+          <div id="arrested" class="checks"></div>
         </div>
+      </div>
 
-        <div class="card full">
-          <h2>犯罪記録</h2>
-          <div id="crimeHistory" class="history"></div>
+      <div class="card">
+        <h2>計算結果</h2>
+        <div class="result-grid">
+          <div class="result"><span>純利益</span><strong id="netOut">¥0</strong></div>
+          <div class="result"><span>合計口数</span><strong id="sharesOut">0口</strong></div>
+          <div class="result"><span>一人あたり</span><strong id="perOut">¥0</strong></div>
+          <div class="result"><span>プール入金</span><strong id="poolOut">¥0</strong></div>
         </div>
+        <h3 style="margin-top:18px">メンバー報酬</h3>
+        <div id="rewardList" class="list"></div>
+        <div style="height:14px"></div>
+        <button id="saveCrime" class="btn full">犯罪記録を保存してプールへ入金</button>
+      </div>
+
+      <div class="card">
+        <h2>犯罪記録</h2>
+        <div id="crimeHistory"></div>
       </div>
     </section>
 
-    <section id="pool" class="tab">
-      <div class="grid">
+    <section id="pool" class="page">
+      <div class="grid2">
         <div class="card">
-          <h2>入金</h2>
-          <div class="field">
-            <label for="depositAmount">金額</label>
-            <input id="depositAmount" type="number" min="1" step="1">
-          </div>
-          <div class="field">
-            <label for="depositReason">理由</label>
-            <input id="depositReason" type="text" placeholder="例：臨時入金">
-          </div>
-          <button id="depositBtn" class="btn success" type="button">入金する</button>
+          <h2>手動入金</h2>
+          <label>金額</label><input id="depositAmount" type="number" min="0">
+          <div style="height:10px"></div>
+          <label>理由</label><input id="depositReason" placeholder="例：個人入金">
+          <div style="height:12px"></div>
+          <button id="depositBtn" class="btn full">プールへ入金</button>
         </div>
-
         <div class="card">
-          <h2>引き出し</h2>
-          <div class="field">
-            <label for="withdrawAmount">金額</label>
-            <input id="withdrawAmount" type="number" min="1" step="1">
-          </div>
-          <div class="field">
-            <label for="withdrawReason">理由</label>
-            <input id="withdrawReason" type="text" placeholder="例：ギャング車両購入">
-          </div>
-          <div class="field">
-            <label for="withdrawMember">担当者</label>
-            <select id="withdrawMember"></select>
-          </div>
-          <button id="withdrawBtn" class="btn danger" type="button">引き出す</button>
+          <h2>出金</h2>
+          <label>金額</label><input id="withdrawAmount" type="number" min="0">
+          <div style="height:10px"></div>
+          <label>理由</label><input id="withdrawReason" placeholder="例：装備購入">
+          <div style="height:10px"></div>
+          <label>担当メンバー</label><select id="withdrawMember"></select>
+          <div style="height:12px"></div>
+          <button id="withdrawBtn" class="btn danger full">プールから出金</button>
         </div>
-
-        <div class="card full">
-          <h2>入出金履歴</h2>
-          <div id="poolHistory" class="history"></div>
-        </div>
+      </div>
+      <div class="card">
+        <h2>入出金履歴</h2>
+        <div id="poolHistory"></div>
       </div>
     </section>
 
-
-    <section id="ranking" class="tab">
-      <div class="ranking-toolbar">
-        <div>
-          <h2 style="margin-bottom:5px">ランキング</h2>
-          <div id="rankingPeriodNote" class="period-note">すべての犯罪記録を集計中</div>
+    <section id="ranking" class="page">
+      <div class="card">
+        <div class="periods">
+          <button class="period-btn active" data-period="all">総合</button>
+          <button class="period-btn" data-period="7d">直近7日</button>
         </div>
-
-        <div class="period-switch" aria-label="ランキング集計期間">
-          <button class="period-btn active" data-period="all" type="button">総合</button>
-          <button class="period-btn" data-period="week" type="button">直近7日間</button>
-        </div>
+        <p id="rankingNote" class="muted"></p>
       </div>
-
-      <div class="ranking-grid">
-        <div class="card">
-          <h2>逮捕数ランキング</h2>
-          <p class="muted">犯罪記録で逮捕者に選ばれた回数</p>
-          <div id="arrestRanking" class="ranking-list"></div>
-        </div>
-
-        <div class="card">
-          <h2>犯罪成功ランキング</h2>
-          <p class="muted">犯罪に参加し、記録保存された回数</p>
-          <div id="successRanking" class="ranking-list"></div>
-        </div>
-
-        <div class="card">
-          <h2>プール貢献ランキング</h2>
-          <p class="muted">犯罪で生まれたプール金への貢献額</p>
-          <div id="poolContributionRanking" class="ranking-list"></div>
-        </div>
+      <div class="grid3">
+        <div class="card"><h2>逮捕数</h2><div id="arrestRank"></div></div>
+        <div class="card"><h2>犯罪参加数</h2><div id="successRank"></div></div>
+        <div class="card"><h2>プール貢献</h2><div id="poolRank"></div></div>
       </div>
     </section>
 
-    <section id="settings" class="tab">
-      <div class="grid">
+    <section id="settings" class="page">
+      <div class="grid2">
         <div class="card">
           <h2>メンバー登録</h2>
-          <div class="inline field">
-            <input id="memberName" type="text" placeholder="メンバー名">
-            <button id="addMemberBtn" class="btn" type="button">＋追加</button>
+          <div class="row">
+            <input id="memberName" placeholder="メンバー名">
+            <button id="addMember" class="btn">＋追加</button>
           </div>
-          <div id="memberSettingsList" class="list"></div>
+          <div style="height:14px"></div>
+          <div id="memberList" class="list"></div>
         </div>
-
         <div class="card">
           <h2>犯罪種類登録</h2>
-          <div class="inline field">
-            <input id="crimeName" type="text" placeholder="犯罪名">
-            <button id="addCrimeBtn" class="btn" type="button">＋追加</button>
+          <div class="row">
+            <input id="crimeName" placeholder="犯罪名">
+            <button id="addCrime" class="btn">＋追加</button>
           </div>
-          <div id="crimeSettingsList" class="list"></div>
+          <div style="height:14px"></div>
+          <div id="crimeList" class="list"></div>
         </div>
-
-        <div class="card full">
-          <h2>データ管理</h2>
-          <p class="muted">この操作はSupabase上の共有データを全削除します。全メンバーに反映されます。</p>
-          <button id="resetBtn" class="btn danger" type="button">全データを初期化</button>
-        </div>
+      </div>
+      <div class="card">
+        <h2>データ管理</h2>
+        <p class="muted">この操作はSupabase上の共有データを全削除します。</p>
+        <button id="resetAll" class="btn danger">全データを初期化</button>
       </div>
     </section>
   </main>
 
+<script>
+(() => {
+  "use strict";
 
-  <script>
-    const SUPABASE_URL = 'https://hufgikfjmieckujjpogh.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_QSa1VTXIKwFPa7UO_9AHog_AneCwZ2b';
+  const SUPABASE_URL = "https://hufgikfjmieckujjpogh.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_QSa1VTXIKwFPa7UO_9AHog_AneCwZ2b";
+  const API = `${SUPABASE_URL}/rest/v1`;
 
-    // 外部ライブラリを使わず、Supabase REST APIへ直接接続する軽量クライアント
-    class SupabaseQuery {
-      constructor(table) {
-        this.table = table;
-        this.method = "GET";
-        this.payload = null;
-        this.params = new URLSearchParams();
-      }
+  const state = {
+    members: [],
+    crimes: [],
+    crimeRecords: [],
+    poolTransactions: [],
+    poolBalance: 0,
+    rankingPeriod: "all"
+  };
 
-      select(columns = "*") {
-        this.params.set("select", columns);
-        return this;
-      }
+  const $ = id => document.getElementById(id);
+  const yen = n => "¥" + Math.floor(Number(n) || 0).toLocaleString("ja-JP");
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+  const fmtDate = v => new Date(v).toLocaleString("ja-JP");
 
-      order(column, options = {}) {
-        const direction = options.ascending === false ? "desc" : "asc";
-        this.params.append("order", `${column}.${direction}`);
-        return this;
-      }
+  function setStatus(kind, text) {
+    const box = $("syncStatus");
+    box.className = "status" + (kind ? " " + kind : "");
+    $("syncText").textContent = text;
+  }
 
-      insert(payload) {
-        this.method = "POST";
-        this.payload = Array.isArray(payload) ? payload : [payload];
-        return this;
-      }
+  function showMessage(text, kind="success") {
+    const box = $("message");
+    box.textContent = text;
+    box.className = `message wrap show ${kind}`;
+    clearTimeout(showMessage.timer);
+    showMessage.timer = setTimeout(() => box.className = "message wrap", 5000);
+  }
 
-      delete() {
-        this.method = "DELETE";
-        return this;
-      }
-
-      eq(column, value) {
-        this.params.append(column, `eq.${value}`);
-        return this;
-      }
-
-      not(column, operator, value) {
-        this.params.append(column, `not.${operator}.${value}`);
-        return this;
-      }
-
-      async execute() {
-        const query = this.params.toString();
-        const url = `${SUPABASE_URL}/rest/v1/${encodeURIComponent(this.table)}${query ? `?${query}` : ""}`;
-
-        const headers = {
-          apikey: SUPABASE_KEY,
-          Accept: "application/json"
-        };
-
-        if (this.method === "POST") {
-          headers["Content-Type"] = "application/json";
-          headers.Prefer = "return=representation";
-        }
-
-        if (this.method === "DELETE") {
-          headers.Prefer = "return=representation";
-        }
-
-        try {
-          const response = await fetch(url, {
-            method: this.method,
-            headers,
-            body: this.payload ? JSON.stringify(this.payload) : undefined
-          });
-
-          const text = await response.text();
-          let data = null;
-
-          if (text) {
-            try {
-              data = JSON.parse(text);
-            } catch {
-              data = text;
-            }
-          }
-
-          if (!response.ok) {
-            const message =
-              data?.message ||
-              data?.details ||
-              `HTTP ${response.status} ${response.statusText}`;
-
-            return {
-              data: null,
-              error: {
-                message,
-                status: response.status,
-                details: data
-              }
-            };
-          }
-
-          return {
-            data: data || [],
-            error: null
-          };
-        } catch (error) {
-          return {
-            data: null,
-            error: {
-              message: error.message || "ネットワーク通信に失敗しました。"
-            }
-          };
-        }
-      }
-
-      then(resolve, reject) {
-        return this.execute().then(resolve, reject);
-      }
-    }
-
-    const db = {
-      from(table) {
-        return new SupabaseQuery(table);
-      }
+  async function request(table, options={}) {
+    const method = options.method || "GET";
+    const query = options.query ? "?" + options.query : "";
+    const headers = {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      Accept: "application/json"
     };
-
-    const state = {
-      members: [],
-      memberRows: [],
-      crimes: [],
-      crimeRows: [],
-      poolBalance: 0,
-      poolHistory: [],
-      crimeHistory: []
-    };
-
-    let lastCalculation = null;
-    let rankingPeriod = "all";
-    let isBusy = false;
-
-    function setStatus(type, text) {
-      const box = document.getElementById("syncStatus");
-      const label = document.getElementById("syncStatusText");
-
-      if (!box || !label) {
-        console.log("[同期状態]", text);
-        return;
-      }
-
-      box.classList.remove("connected", "error");
-      if (type) box.classList.add(type);
-      label.textContent = text;
+    if (method !== "GET") {
+      headers["Content-Type"] = "application/json";
+      headers["Prefer"] = "return=representation";
     }
 
-    function yen(value) {
-      return "¥" + Math.floor(Number(value) || 0).toLocaleString("ja-JP");
+    const res = await fetch(`${API}/${table}${query}`, {
+      method,
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+    const text = await res.text();
+    let data = [];
+    if (text) {
+      try { data = JSON.parse(text); } catch { data = text; }
     }
-
-    function formatDate(value) {
-      if (!value) return "";
-      const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("ja-JP");
+    if (!res.ok) {
+      const message = data?.message || data?.details || `${res.status} ${res.statusText}`;
+      throw new Error(message);
     }
+    return data;
+  }
 
-    function escapeHtml(text) {
-      return String(text)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
-    function selectedValues(containerId) {
-      return [...document.querySelectorAll(`#${containerId} input:checked`)]
-        .map(input => input.value);
-    }
-
-    function showError(error, fallback = "処理に失敗しました。") {
-      console.error(error);
-      const message = error?.message || fallback;
-      setStatus("error", "接続または保存でエラー");
-      alert(`${fallback}
-
-${message}`);
-    }
-
-    async function loadAllData(showLoading = true) {
-      if (showLoading) setStatus("", "Supabaseから同期中…");
-
-      const [
-        membersResult,
-        crimesResult,
-        crimeRecordsResult,
-        poolResult
-      ] = await Promise.all([
-        db.from("members").select("*").order("created_at", { ascending: true }),
-        db.from("crime_types").select("*").order("created_at", { ascending: true }),
-        db.from("crime_records").select("*").order("created_at", { ascending: true }),
-        db.from("pool_transactions").select("*").order("created_at", { ascending: true })
+  async function loadAll() {
+    setStatus("", "共有データを同期中…");
+    try {
+      const [members, crimes, records, txs] = await Promise.all([
+        request("members", {query:"select=*&order=created_at.asc"}),
+        request("crime_types", {query:"select=*&order=created_at.asc"}),
+        request("crime_records", {query:"select=*&order=created_at.asc"}),
+        request("pool_transactions", {query:"select=*&order=created_at.asc"})
       ]);
-
-      const failed = [membersResult, crimesResult, crimeRecordsResult, poolResult]
-        .find(result => result.error);
-
-      if (failed) throw failed.error;
-
-      state.memberRows = membersResult.data || [];
-      state.members = state.memberRows.map(row => row.name);
-
-      state.crimeRows = crimesResult.data || [];
-      state.crimes = state.crimeRows.map(row => row.name);
-
-      state.crimeHistory = (crimeRecordsResult.data || []).map(row => ({
-        id: row.id,
-        crime: row.crime,
-        participants: Array.isArray(row.participants) ? row.participants : [],
-        arrested: Array.isArray(row.arrested) ? row.arrested : [],
-        gross: Number(row.gross) || 0,
-        fine: Number(row.fine) || 0,
-        net: Number(row.net) || 0,
-        poolShares: Number(row.pool_shares) || 0,
-        totalShares: Number(row.total_shares) || 0,
-        perPerson: Number(row.per_person) || 0,
-        poolDeposit: Number(row.pool_deposit) || 0,
-        remainder: Number(row.remainder) || 0,
-        createdAt: row.created_at,
-        date: formatDate(row.created_at)
-      }));
-
-      state.poolHistory = (poolResult.data || []).map(row => ({
-        id: row.id,
-        type: row.transaction_type,
-        amount: Number(row.amount) || 0,
-        reason: row.reason || "理由なし",
-        member: row.member || "",
-        createdAt: row.created_at,
-        date: formatDate(row.created_at),
-        balanceAfter: Number(row.balance_after) || 0
-      }));
-
-      state.poolBalance = state.poolHistory.reduce((total, item) => {
-        return total + (item.type === "deposit" ? item.amount : -item.amount);
-      }, 0);
-
-      let runningBalance = 0;
-      state.poolHistory.forEach(item => {
-        runningBalance += item.type === "deposit" ? item.amount : -item.amount;
-        item.balanceAfter = runningBalance;
-      });
-
+      state.members = members || [];
+      state.crimes = crimes || [];
+      state.crimeRecords = records || [];
+      state.poolTransactions = txs || [];
+      state.poolBalance = state.poolTransactions.reduce((sum,t) =>
+        sum + (t.transaction_type === "deposit" ? Number(t.amount) : -Number(t.amount)), 0);
       renderAll();
-      clearAppMessage();
-      setStatus("connected", `共有データ同期済み・${new Date().toLocaleTimeString("ja-JP")}`);
+      setStatus("ok", "共有データ同期済み");
+    } catch (e) {
+      console.error(e);
+      setStatus("error", "接続エラー");
+      showMessage("Supabase接続エラー：" + e.message, "error");
     }
+  }
 
-    function renderAll() {
-      renderHeader();
-      renderCrimeSelect();
-      renderMemberSelections();
-      renderWithdrawMembers();
-      renderSettings();
-      renderPoolHistory();
-      renderCrimeHistory();
+  function renderAll() {
+    $("headerBalance").textContent = yen(state.poolBalance);
+
+    $("crimeSelect").innerHTML = state.crimes.length
+      ? state.crimes.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join("")
+      : '<option value="">犯罪種類を登録してください</option>';
+
+    $("withdrawMember").innerHTML = '<option value="">未選択</option>' +
+      state.members.map(m => `<option value="${esc(m.name)}">${esc(m.name)}</option>`).join("");
+
+    const checks = state.members.length
+      ? state.members.map(m => `<label class="check"><input type="checkbox" value="${esc(m.name)}"><span>${esc(m.name)}</span></label>`).join("")
+      : '<div class="empty">メンバーを登録してください</div>';
+    $("participants").innerHTML = checks;
+    $("arrested").innerHTML = checks;
+
+    $("memberList").innerHTML = state.members.length
+      ? state.members.map(m => `<div class="list-row"><span>${esc(m.name)}</span><button class="btn danger delete-member" data-id="${m.id}">削除</button></div>`).join("")
+      : '<div class="empty">登録メンバーなし</div>';
+
+    $("crimeList").innerHTML = state.crimes.length
+      ? state.crimes.map(c => `<div class="list-row"><span>${esc(c.name)}</span><button class="btn danger delete-crime" data-id="${c.id}">削除</button></div>`).join("")
+      : '<div class="empty">登録犯罪なし</div>';
+
+    renderCrimeHistory();
+    renderPoolHistory();
+    renderRankings();
+    calculate();
+  }
+
+  function selected(id) {
+    return [...$(id).querySelectorAll('input[type="checkbox"]:checked')].map(x => x.value);
+  }
+
+  function calculate() {
+    const gross = Math.max(0, Number($("gross").value) || 0);
+    const fine = Math.max(0, Number($("fine").value) || 0);
+    const members = selected("participants");
+    const poolShares = Math.max(0, Number($("poolShares").value) || 0);
+    const net = Math.max(0, gross - fine);
+    const totalShares = members.length + poolShares;
+    const perPerson = totalShares ? Math.floor(net / totalShares) : 0;
+    const remainder = net - perPerson * totalShares;
+    const poolDeposit = perPerson * poolShares + remainder;
+
+    $("netOut").textContent = yen(net);
+    $("sharesOut").textContent = totalShares + "口";
+    $("perOut").textContent = yen(perPerson);
+    $("poolOut").textContent = yen(poolDeposit);
+    $("rewardList").innerHTML = members.length
+      ? members.map(n => `<div class="list-row"><span>${esc(n)}</span><strong>${yen(perPerson)}</strong></div>`).join("")
+      : '<div class="empty">参加メンバーを選択してください</div>';
+
+    return {
+      crime:$("crimeSelect").value, gross, fine, net, participants:members,
+      arrested:selected("arrested"), poolShares, totalShares, perPerson, remainder, poolDeposit
+    };
+  }
+
+  async function withBusy(button, text, fn) {
+    const original = button.textContent;
+    button.disabled = true;
+    button.textContent = text;
+    try { await fn(); }
+    catch(e) { console.error(e); showMessage(e.message, "error"); }
+    finally { button.disabled = false; button.textContent = original; }
+  }
+
+  async function addMember() {
+    const name = $("memberName").value.trim();
+    if (!name) return showMessage("メンバー名を入力してください。", "error");
+    if (state.members.some(m => m.name === name)) return showMessage("同じメンバー名があります。", "error");
+    await request("members", {method:"POST", body:{name}});
+    $("memberName").value = "";
+    await loadAll();
+    showMessage(`「${name}」を追加しました。`);
+  }
+
+  async function addCrime() {
+    const name = $("crimeName").value.trim();
+    if (!name) return showMessage("犯罪名を入力してください。", "error");
+    if (state.crimes.some(c => c.name === name)) return showMessage("同じ犯罪名があります。", "error");
+    await request("crime_types", {method:"POST", body:{name}});
+    $("crimeName").value = "";
+    await loadAll();
+    showMessage(`「${name}」を追加しました。`);
+  }
+
+  async function saveCrime() {
+    const c = calculate();
+    if (!c.crime) throw new Error("犯罪種類を登録・選択してください。");
+    if (!c.participants.length) throw new Error("参加メンバーを選択してください。");
+    if (c.gross <= 0) throw new Error("利確金額を入力してください。");
+    if (c.net <= 0) throw new Error("純利益が0円以下です。");
+
+    await request("crime_records", {method:"POST", body:{
+      crime:c.crime, participants:c.participants, arrested:c.arrested,
+      gross:c.gross, fine:c.fine, net:c.net, pool_shares:c.poolShares,
+      total_shares:c.totalShares, per_person:c.perPerson,
+      pool_deposit:c.poolDeposit, remainder:c.remainder
+    }});
+
+    if (c.poolDeposit > 0) {
+      await request("pool_transactions", {method:"POST", body:{
+        transaction_type:"deposit", amount:c.poolDeposit,
+        reason:`${c.crime} プール分`, member:"",
+        balance_after:state.poolBalance + c.poolDeposit
+      }});
+    }
+    $("gross").value = "";
+    $("fine").value = "";
+    await loadAll();
+    showMessage("犯罪記録を保存し、プールへ入金しました。");
+  }
+
+  async function poolTransaction(type) {
+    const isDeposit = type === "deposit";
+    const amount = Math.floor(Number($(isDeposit ? "depositAmount" : "withdrawAmount").value) || 0);
+    const reason = $(isDeposit ? "depositReason" : "withdrawReason").value.trim() || "理由なし";
+    const member = isDeposit ? "" : $("withdrawMember").value;
+    if (amount <= 0) throw new Error("正しい金額を入力してください。");
+    if (!isDeposit && amount > state.poolBalance) throw new Error("プール残高が不足しています。");
+    await request("pool_transactions", {method:"POST", body:{
+      transaction_type:type, amount, reason, member,
+      balance_after:state.poolBalance + (isDeposit ? amount : -amount)
+    }});
+    $(isDeposit ? "depositAmount" : "withdrawAmount").value = "";
+    $(isDeposit ? "depositReason" : "withdrawReason").value = "";
+    await loadAll();
+    showMessage(isDeposit ? "入金しました。" : "出金しました。");
+  }
+
+  function renderCrimeHistory() {
+    $("crimeHistory").innerHTML = state.crimeRecords.length
+      ? [...state.crimeRecords].reverse().map(r => `<div class="history">
+          <div class="history-head"><strong>${esc(r.crime)}</strong><span class="muted">${fmtDate(r.created_at)}</span></div>
+          <div class="muted">参加：${(r.participants||[]).map(esc).join("、") || "なし"}</div>
+          <div class="muted">逮捕：${(r.arrested||[]).map(esc).join("、") || "なし"}</div>
+          <div>純利益 ${yen(r.net)} ／ 一人 ${yen(r.per_person)} ／ プール ${yen(r.pool_deposit)}</div>
+        </div>`).join("")
+      : '<div class="empty">犯罪記録はまだありません</div>';
+  }
+
+  function renderPoolHistory() {
+    let running = 0;
+    const rows = state.poolTransactions.map(t => {
+      running += t.transaction_type === "deposit" ? Number(t.amount) : -Number(t.amount);
+      return {...t, running};
+    });
+    $("poolHistory").innerHTML = rows.length
+      ? rows.reverse().map(t => `<div class="history">
+          <div class="history-head"><strong class="${t.transaction_type==="deposit"?"plus":"minus"}">${t.transaction_type==="deposit"?"+":"-"}${yen(t.amount)}</strong><span class="muted">${fmtDate(t.created_at)}</span></div>
+          <div>${esc(t.reason)}</div><div class="muted">処理後残高：${yen(t.running)}</div>
+        </div>`).join("")
+      : '<div class="empty">入出金履歴はまだありません</div>';
+  }
+
+  function renderRankings() {
+    let records = state.crimeRecords;
+    if (state.rankingPeriod === "7d") {
+      const cutoff = Date.now() - 7*24*60*60*1000;
+      records = records.filter(r => new Date(r.created_at).getTime() >= cutoff);
+    }
+    const stats = {};
+    state.members.forEach(m => stats[m.name] = {arrests:0,success:0,pool:0});
+    records.forEach(r => {
+      (r.participants||[]).forEach(n => {
+        stats[n] ??= {arrests:0,success:0,pool:0};
+        stats[n].success++;
+      });
+      (r.arrested||[]).forEach(n => {
+        stats[n] ??= {arrests:0,success:0,pool:0};
+        stats[n].arrests++;
+      });
+      const list = r.participants || [];
+      if (list.length) {
+        const each = Math.floor(Number(r.pool_deposit || 0) / list.length);
+        list.forEach(n => {
+          stats[n] ??= {arrests:0,success:0,pool:0};
+          stats[n].pool += each;
+        });
+      }
+    });
+    $("rankingNote").textContent = `${state.rankingPeriod==="all"?"総合":"直近7日"}・${records.length}件を集計`;
+    const render = (key, format) => Object.entries(stats)
+      .sort((a,b) => b[1][key]-a[1][key] || a[0].localeCompare(b[0],"ja"))
+      .map(([name,v],i) => `<div class="rank-row"><span class="rank-num">${i+1}</span><span>${esc(name)}</span><strong>${format(v[key])}</strong></div>`).join("")
+      || '<div class="empty">データなし</div>';
+    $("arrestRank").innerHTML = render("arrests", v => v+"回");
+    $("successRank").innerHTML = render("success", v => v+"回");
+    $("poolRank").innerHTML = render("pool", yen);
+  }
+
+  async function deleteRow(table,id) {
+    await request(table, {method:"DELETE", query:`id=eq.${encodeURIComponent(id)}`});
+    await loadAll();
+  }
+
+  async function resetAll() {
+    if (!confirm("共有データをすべて削除しますか？")) return;
+    const word = prompt('確認のため「全削除」と入力してください。');
+    if (word !== "全削除") return;
+    for (const table of ["pool_transactions","crime_records","crime_types","members"]) {
+      await request(table, {method:"DELETE", query:"id=not.is.null"});
+    }
+    await loadAll();
+    showMessage("共有データを全削除しました。");
+  }
+
+  function bind() {
+    document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(x => x.classList.toggle("active", x===btn));
+      document.querySelectorAll(".page").forEach(x => x.classList.toggle("active", x.id===btn.dataset.page));
+    }));
+
+    ["gross","fine","poolShares"].forEach(id => $(id).addEventListener("input", calculate));
+    $("participants").addEventListener("change", calculate);
+    $("arrested").addEventListener("change", calculate);
+
+    $("addMember").addEventListener("click", e => withBusy(e.currentTarget,"追加中…",addMember));
+    $("addCrime").addEventListener("click", e => withBusy(e.currentTarget,"追加中…",addCrime));
+    $("saveCrime").addEventListener("click", e => withBusy(e.currentTarget,"保存中…",saveCrime));
+    $("depositBtn").addEventListener("click", e => withBusy(e.currentTarget,"入金中…",() => poolTransaction("deposit")));
+    $("withdrawBtn").addEventListener("click", e => withBusy(e.currentTarget,"出金中…",() => poolTransaction("withdraw")));
+    $("resetAll").addEventListener("click", e => withBusy(e.currentTarget,"削除中…",resetAll));
+
+    $("memberName").addEventListener("keydown", e => { if(e.key==="Enter") $("addMember").click(); });
+    $("crimeName").addEventListener("keydown", e => { if(e.key==="Enter") $("addCrime").click(); });
+
+    $("memberList").addEventListener("click", e => {
+      const btn = e.target.closest(".delete-member");
+      if (btn && confirm("このメンバーを削除しますか？")) withBusy(btn,"削除中…",() => deleteRow("members",btn.dataset.id));
+    });
+    $("crimeList").addEventListener("click", e => {
+      const btn = e.target.closest(".delete-crime");
+      if (btn && confirm("この犯罪種類を削除しますか？")) withBusy(btn,"削除中…",() => deleteRow("crime_types",btn.dataset.id));
+    });
+
+    document.querySelectorAll(".period-btn").forEach(btn => btn.addEventListener("click", () => {
+      state.rankingPeriod = btn.dataset.period;
+      document.querySelectorAll(".period-btn").forEach(x => x.classList.toggle("active",x===btn));
       renderRankings();
-      calculateCrime();
-    }
-
-    function renderHeader() {
-      document.getElementById("headerBalance").textContent = yen(state.poolBalance);
-    }
-
-    function renderCrimeSelect() {
-      const select = document.getElementById("crimeType");
-      const current = select.value;
-      select.innerHTML = state.crimes.length
-        ? state.crimes.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("")
-        : `<option value="">犯罪種類を登録してください</option>`;
-      if (state.crimes.includes(current)) select.value = current;
-    }
-
-    function renderMemberSelections() {
-      const participant = document.getElementById("participantList");
-      const arrested = document.getElementById("arrestedList");
-
-      if (!state.members.length) {
-        participant.innerHTML = `<div class="empty">メンバーを登録してください</div>`;
-        arrested.innerHTML = `<div class="empty">メンバーを登録してください</div>`;
-        return;
-      }
-
-      participant.innerHTML = state.members.map(name => `
-        <label class="check-item">
-          <input type="checkbox" value="${escapeHtml(name)}">
-          <span>${escapeHtml(name)}</span>
-        </label>
-      `).join("");
-
-      arrested.innerHTML = state.members.map(name => `
-        <label class="check-item">
-          <input type="checkbox" value="${escapeHtml(name)}">
-          <span>${escapeHtml(name)}</span>
-        </label>
-      `).join("");
-
-      document.querySelectorAll("#participantList input, #arrestedList input")
-        .forEach(el => el.addEventListener("change", calculateCrime));
-    }
-
-    function renderWithdrawMembers() {
-      const select = document.getElementById("withdrawMember");
-      select.innerHTML = `<option value="">未選択</option>` +
-        state.members.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
-    }
-
-    function renderSettings() {
-      const memberList = document.getElementById("memberSettingsList");
-      memberList.innerHTML = state.memberRows.length
-        ? state.memberRows.map(row => `
-            <div class="list-row">
-              <span>${escapeHtml(row.name)}</span>
-              <button class="remove-btn" data-member-id="${row.id}" type="button">−</button>
-            </div>
-          `).join("")
-        : `<div class="empty">登録メンバーなし</div>`;
-
-      const crimeList = document.getElementById("crimeSettingsList");
-      crimeList.innerHTML = state.crimeRows.length
-        ? state.crimeRows.map(row => `
-            <div class="list-row">
-              <span>${escapeHtml(row.name)}</span>
-              <button class="remove-btn" data-crime-id="${row.id}" type="button">−</button>
-            </div>
-          `).join("")
-        : `<div class="empty">登録犯罪なし</div>`;
-
-      document.querySelectorAll("[data-member-id]").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          if (!confirm("このメンバーを共有リストから削除しますか？過去の犯罪履歴は残ります。")) return;
-          const { error } = await db.from("members").delete().eq("id", btn.dataset.memberId);
-          if (error) return showError(error, "メンバーを削除できませんでした。");
-          await loadAllData(false);
-        });
-      });
-
-      document.querySelectorAll("[data-crime-id]").forEach(btn => {
-        btn.addEventListener("click", async () => {
-          if (!confirm("この犯罪種類を共有リストから削除しますか？過去の犯罪履歴は残ります。")) return;
-          const { error } = await db.from("crime_types").delete().eq("id", btn.dataset.crimeId);
-          if (error) return showError(error, "犯罪種類を削除できませんでした。");
-          await loadAllData(false);
-        });
-      });
-    }
-
-    function calculateCrime() {
-      const gross = Math.max(0, Number(document.getElementById("grossAmount").value) || 0);
-      const fine = Math.max(0, Number(document.getElementById("fineAmount").value) || 0);
-      const participants = selectedValues("participantList");
-      const arrested = selectedValues("arrestedList");
-      const poolShares = Math.max(0, Number(document.getElementById("poolShares").value) || 0);
-
-      const net = Math.max(0, gross - fine);
-      const totalShares = participants.length + poolShares;
-      const perPerson = totalShares > 0 ? Math.floor(net / totalShares) : 0;
-      const distributed = perPerson * totalShares;
-      const remainder = net - distributed;
-      const poolDeposit = (perPerson * poolShares) + remainder;
-
-      lastCalculation = {
-        crime: document.getElementById("crimeType").value,
-        gross,
-        fine,
-        participants,
-        arrested,
-        poolShares,
-        net,
-        totalShares,
-        perPerson,
-        poolDeposit,
-        remainder
-      };
-
-      document.getElementById("netProfit").textContent = yen(net);
-      document.getElementById("totalShares").textContent = `${totalShares}口`;
-      document.getElementById("perPerson").textContent = yen(perPerson);
-      document.getElementById("poolDeposit").textContent = yen(poolDeposit);
-
-      const rewardList = document.getElementById("rewardList");
-      rewardList.innerHTML = participants.length
-        ? participants.map(name => `
-            <div class="list-row">
-              <span>${escapeHtml(name)}</span>
-              <strong>${yen(perPerson)}</strong>
-            </div>
-          `).join("")
-        : `<div class="empty">参加メンバーを選択してください</div>`;
-    }
-
-    function renderPoolHistory() {
-      const box = document.getElementById("poolHistory");
-
-      if (!state.poolHistory.length) {
-        box.innerHTML = `<div class="empty">入出金履歴はまだありません</div>`;
-        return;
-      }
-
-      box.innerHTML = [...state.poolHistory].reverse().map(item => `
-        <div class="history-row">
-          <div class="history-head">
-            <strong class="${item.type === "deposit" ? "plus" : "minus"}">
-              ${item.type === "deposit" ? "+" : "-"}${yen(item.amount)}
-            </strong>
-            <span class="muted">${escapeHtml(item.date)}</span>
-          </div>
-          <div style="margin-top:6px">${escapeHtml(item.reason || "理由なし")}</div>
-          ${item.member ? `<div class="muted">担当：${escapeHtml(item.member)}</div>` : ""}
-          <div class="muted">処理後残高：${yen(item.balanceAfter)}</div>
-        </div>
-      `).join("");
-    }
-
-    function renderCrimeHistory() {
-      const box = document.getElementById("crimeHistory");
-
-      if (!state.crimeHistory.length) {
-        box.innerHTML = `<div class="empty">犯罪記録はまだありません</div>`;
-        return;
-      }
-
-      box.innerHTML = [...state.crimeHistory].reverse().map(item => `
-        <div class="history-row">
-          <div class="history-head">
-            <strong>${escapeHtml(item.crime)}</strong>
-            <span class="muted">${escapeHtml(item.date)}</span>
-          </div>
-          <div class="muted" style="margin-top:7px">
-            参加：${item.participants.map(escapeHtml).join("、") || "なし"}
-          </div>
-          <div class="muted">
-            逮捕：${item.arrested.map(escapeHtml).join("、") || "なし"}
-          </div>
-          <div style="margin-top:8px">
-            利確 ${yen(item.gross)} ／ 罰金 ${yen(item.fine)} ／ 純利益 ${yen(item.net)}
-          </div>
-          <div>
-            一人あたり ${yen(item.perPerson)} ／ プール入金 ${yen(item.poolDeposit)}
-          </div>
-        </div>
-      `).join("");
-    }
-
-    function parseRecordDate(record) {
-      const parsed = new Date(record.createdAt || record.date);
-      return Number.isNaN(parsed.getTime()) ? null : parsed;
-    }
-
-    function getRankingRecords() {
-      if (rankingPeriod === "all") return state.crimeHistory;
-
-      const now = new Date();
-      const cutoff = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-
-      return state.crimeHistory.filter(record => {
-        const recordDate = parseRecordDate(record);
-        return recordDate && recordDate >= cutoff && recordDate <= now;
-      });
-    }
-
-    function createBaseMemberStats() {
-      const stats = {};
-      state.members.forEach(name => {
-        stats[name] = { arrests: 0, successes: 0, poolContribution: 0 };
-      });
-
-      getRankingRecords().forEach(record => {
-        (record.participants || []).forEach(name => {
-          if (!stats[name]) stats[name] = { arrests: 0, successes: 0, poolContribution: 0 };
-          stats[name].successes += 1;
-        });
-
-        (record.arrested || []).forEach(name => {
-          if (!stats[name]) stats[name] = { arrests: 0, successes: 0, poolContribution: 0 };
-          stats[name].arrests += 1;
-        });
-
-        const participantCount = (record.participants || []).length;
-        if (participantCount > 0 && Number(record.poolDeposit) > 0) {
-          const each = Math.floor(Number(record.poolDeposit) / participantCount);
-          const remainder = Number(record.poolDeposit) - each * participantCount;
-
-          (record.participants || []).forEach((name, index) => {
-            if (!stats[name]) stats[name] = { arrests: 0, successes: 0, poolContribution: 0 };
-            stats[name].poolContribution += each + (index === 0 ? remainder : 0);
-          });
-        }
-      });
-
-      return stats;
-    }
-
-    function rankingHtml(entries, valueFormatter) {
-      if (!entries.length) return `<div class="empty">ランキングデータはまだありません</div>`;
-
-      return entries.map(([name, value], index) => `
-        <div class="ranking-row">
-          <div class="rank-number">${index + 1}</div>
-          <div>${escapeHtml(name)}</div>
-          <div class="ranking-value">${valueFormatter(value)}</div>
-        </div>
-      `).join("");
-    }
-
-    function renderRankings() {
-      const stats = createBaseMemberStats();
-      const records = getRankingRecords();
-
-      document.getElementById("rankingPeriodNote").textContent =
-        rankingPeriod === "all"
-          ? `すべての犯罪記録を集計中（${records.length}件）`
-          : `現在時刻から直近7日間を集計中（${records.length}件）`;
-
-      const arrestEntries = Object.entries(stats)
-        .map(([name, values]) => [name, values.arrests])
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ja"));
-
-      const successEntries = Object.entries(stats)
-        .map(([name, values]) => [name, values.successes])
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ja"));
-
-      const poolEntries = Object.entries(stats)
-        .map(([name, values]) => [name, values.poolContribution])
-        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ja"));
-
-      document.getElementById("arrestRanking").innerHTML =
-        rankingHtml(arrestEntries, value => `${value}回`);
-      document.getElementById("successRanking").innerHTML =
-        rankingHtml(successEntries, value => `${value}回`);
-      document.getElementById("poolContributionRanking").innerHTML =
-        rankingHtml(poolEntries, value => yen(value));
-    }
-
-    async function addPoolTransaction(type, amount, reason, member = "") {
-      amount = Math.floor(Number(amount));
-
-      if (!Number.isFinite(amount) || amount <= 0) {
-        alert("正しい金額を入力してください。");
-        return false;
-      }
-
-      await loadAllData(false);
-
-      if (type === "withdraw" && amount > state.poolBalance) {
-        alert("プール残高が不足しています。");
-        return false;
-      }
-
-      const nextBalance = state.poolBalance + (type === "deposit" ? amount : -amount);
-      const { error } = await db.from("pool_transactions").insert({
-        transaction_type: type,
-        amount,
-        reason: reason.trim() || "理由なし",
-        member,
-        balance_after: nextBalance
-      });
-
-      if (error) {
-        showError(error, "入出金を保存できませんでした。");
-        return false;
-      }
-
-      await loadAllData(false);
-      return true;
-    }
-
-    document.querySelectorAll(".period-btn").forEach(button => {
-      button.addEventListener("click", () => {
-        rankingPeriod = button.dataset.period;
-        document.querySelectorAll(".period-btn").forEach(btn => {
-          btn.classList.toggle("active", btn === button);
-        });
-        renderRankings();
-      });
-    });
-
-    document.querySelectorAll(".tab-btn").forEach(button => {
-      button.addEventListener("click", () => {
-        document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-        document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
-        button.classList.add("active");
-        document.getElementById(button.dataset.tab).classList.add("active");
-      });
-    });
-
-    document.getElementById("addMemberBtn").addEventListener("click", async () => {
-      const button = document.getElementById("addMemberBtn");
-      const input = document.getElementById("memberName");
-      const name = input.value.trim();
-
-      if (!name) return alert("メンバー名を入力してください。");
-      if (state.members.includes(name)) return alert("同じ名前が登録されています。");
-
-      setButtonBusy(button, true, "追加中…");
-      setStatus("", "メンバーを追加中…");
-
-      try {
-        const { error } = await db.from("members").insert({ name });
-        if (error) throw error;
-
-        input.value = "";
-        await loadAllData(false);
-        alert(`「${name}」を追加しました。`);
-      } catch (error) {
-        showError(error, "メンバーを登録できませんでした。");
-      } finally {
-        setButtonBusy(button, false);
-      }
-    });
-
-    document.getElementById("addCrimeBtn").addEventListener("click", async () => {
-      const button = document.getElementById("addCrimeBtn");
-      const input = document.getElementById("crimeName");
-      const name = input.value.trim();
-
-      if (!name) return alert("犯罪名を入力してください。");
-      if (state.crimes.includes(name)) return alert("同じ犯罪名が登録されています。");
-
-      setButtonBusy(button, true, "追加中…");
-      setStatus("", "犯罪種類を追加中…");
-
-      try {
-        const { error } = await db.from("crime_types").insert({ name });
-        if (error) throw error;
-
-        input.value = "";
-        await loadAllData(false);
-        alert(`「${name}」を追加しました。`);
-      } catch (error) {
-        showError(error, "犯罪種類を登録できませんでした。");
-      } finally {
-        setButtonBusy(button, false);
-      }
-    });
-
-    ["grossAmount", "fineAmount", "poolShares", "crimeType"].forEach(id => {
-      document.getElementById(id).addEventListener("input", calculateCrime);
-      document.getElementById(id).addEventListener("change", calculateCrime);
-    });
-
-    document.getElementById("calculateBtn").addEventListener("click", calculateCrime);
-
-    document.getElementById("saveCrimeBtn").addEventListener("click", async () => {
-      if (isBusy) return;
-      calculateCrime();
-
-      if (!lastCalculation.crime) return alert("犯罪名を登録・選択してください。");
-      if (!lastCalculation.participants.length) return alert("参加メンバーを選択してください。");
-      if (lastCalculation.gross <= 0) return alert("利確金額を入力してください。");
-      if (lastCalculation.net <= 0) return alert("純利益が0円以下です。");
-
-      isBusy = true;
-      const saveButton = document.getElementById("saveCrimeBtn");
-      setButtonBusy(saveButton, true, "保存中…");
-      setStatus("", "犯罪記録を保存中…");
-
-      try {
-        await loadAllData(false);
-
-        const { error: crimeError } = await db.from("crime_records").insert({
-          crime: lastCalculation.crime,
-          participants: lastCalculation.participants,
-          arrested: lastCalculation.arrested,
-          gross: lastCalculation.gross,
-          fine: lastCalculation.fine,
-          net: lastCalculation.net,
-          pool_shares: lastCalculation.poolShares,
-          total_shares: lastCalculation.totalShares,
-          per_person: lastCalculation.perPerson,
-          pool_deposit: lastCalculation.poolDeposit,
-          remainder: lastCalculation.remainder
-        });
-
-        if (crimeError) throw crimeError;
-
-        if (lastCalculation.poolDeposit > 0) {
-          const nextBalance = state.poolBalance + lastCalculation.poolDeposit;
-          const { error: poolError } = await db.from("pool_transactions").insert({
-            transaction_type: "deposit",
-            amount: lastCalculation.poolDeposit,
-            reason: `${lastCalculation.crime} プール分`,
-            member: "",
-            balance_after: nextBalance
-          });
-
-          if (poolError) throw poolError;
-        }
-
-        document.getElementById("grossAmount").value = "";
-        document.getElementById("fineAmount").value = "";
-
-        await loadAllData(false);
-        alert("犯罪記録を全メンバー共有データへ保存しました。");
-      } catch (error) {
-        showError(error, "犯罪記録を保存できませんでした。");
-      } finally {
-        isBusy = false;
-        setButtonBusy(document.getElementById("saveCrimeBtn"), false);
-      }
-    });
-
-    document.getElementById("depositBtn").addEventListener("click", async () => {
-      const amount = document.getElementById("depositAmount").value;
-      const reason = document.getElementById("depositReason").value;
-
-      if (await addPoolTransaction("deposit", amount, reason)) {
-        document.getElementById("depositAmount").value = "";
-        document.getElementById("depositReason").value = "";
-      }
-    });
-
-    document.getElementById("withdrawBtn").addEventListener("click", async () => {
-      const amount = document.getElementById("withdrawAmount").value;
-      const reason = document.getElementById("withdrawReason").value;
-      const member = document.getElementById("withdrawMember").value;
-
-      if (await addPoolTransaction("withdraw", amount, reason, member)) {
-        document.getElementById("withdrawAmount").value = "";
-        document.getElementById("withdrawReason").value = "";
-        document.getElementById("withdrawMember").value = "";
-      }
-    });
-
-    document.getElementById("resetBtn").addEventListener("click", async () => {
-      const first = confirm("本当に共有データを全削除しますか？全メンバーの画面から消えます。");
-      if (!first) return;
-
-      const second = prompt('確認のため「全削除」と入力してください。');
-      if (second !== "全削除") return alert("入力が一致しなかったため中止しました。");
-
-      try {
-        setStatus("", "共有データを削除中…");
-
-        const tables = ["pool_transactions", "crime_records", "crime_types", "members"];
-        for (const table of tables) {
-          const { error } = await db.from(table).delete().not("id", "is", null);
-          if (error) throw error;
-        }
-
-        await loadAllData(false);
-        alert("共有データを全削除しました。");
-      } catch (error) {
-        showError(error, "全データを削除できませんでした。");
-      }
-    });
-
-    document.getElementById("memberName").addEventListener("keydown", event => {
-      if (event.key === "Enter") document.getElementById("addMemberBtn").click();
-    });
-
-    document.getElementById("crimeName").addEventListener("keydown", event => {
-      if (event.key === "Enter") document.getElementById("addCrimeBtn").click();
-    });
-
-    async function initialize() {
-      try {
-        await loadAllData();
-      } catch (error) {
-        showError(error, "Supabaseへ接続できませんでした。SQL設定と接続情報を確認してください。");
-      }
-
-      setInterval(async () => {
-        try {
-          await loadAllData(false);
-        } catch (error) {
-          console.error(error);
-          setStatus("error", "自動同期に失敗");
-        }
-      }, 15000);
-    }
-
-    initialize();
-  </script>
+    }));
+  }
+
+  bind();
+  loadAll();
+  setInterval(loadAll, 30000);
+})();
+</script>
 </body>
 </html>

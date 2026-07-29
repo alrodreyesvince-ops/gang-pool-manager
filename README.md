@@ -1,28 +1,28 @@
-# Gang Pool Manager v4.3 Shared Fixed
+# Gang Pool Manager v5 Shared
 
-## 今回の原因
+Supabase共有専用としてゼロから作り直した版です。
 
-同期状態表示のHTML要素が存在しない状態で、
-追加・保存処理が同期表示を書き換えようとしてJavaScriptエラーになっていました。
-
-そのため以下がすべて途中停止していました。
-
-- メンバー追加
-- 犯罪種類追加
-- 犯罪記録保存
-- プール入金
-
-## 修正内容
-
-- 同期状態表示をヘッダーへ復活
-- 同期表示が見つからなくても処理を止めない
-- エラー内容を画面上にも表示
-- タイトルをv4.3 Sharedへ変更
-
-## GitHub更新
-
+## GitHubへ反映
 1. ZIPを展開
-2. index.htmlをGitHubへ上書き
+2. index.htmlをGitHubリポジトリのルートへ上書き
 3. Commit changes
-4. 公開サイトでCtrl + F5
-5. タイトルがv4.3 Sharedになっていることを確認
+4. 公開ページで Ctrl + F5
+5. タイトルが Gang Pool Manager v5 Shared になっていることを確認
+
+## Supabase
+先に完全初期化SQLを実行し、以下のテーブルがある状態で使ってください。
+- members
+- crime_types
+- crime_records
+- pool_transactions
+
+## 主な機能
+- メンバー登録・削除
+- 犯罪種類登録・削除
+- 犯罪利益計算
+- 犯罪履歴保存
+- プール自動入金
+- 手動入出金
+- 総合／直近7日ランキング
+- 30秒ごとの自動同期
+- エラーの画面表示
