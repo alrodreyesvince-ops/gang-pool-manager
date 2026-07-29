@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gang Pool Manager v4.2 Shared</title>
+  <title>Gang Pool Manager v4.3 Shared</title>
   <style>
     :root {
       --bg: #0b0d12;
@@ -448,8 +448,12 @@
   <main class="app">
     <header>
       <div class="title">
-        <h1>Gang Pool Manager v4.2 Shared</h1>
+        <h1>Gang Pool Manager v4.3 Shared</h1>
         <p>犯罪利益・メンバー報酬・ギャングプール管理</p>
+        <div id="syncStatus" class="sync-status">
+          <span class="sync-dot"></span>
+          <span id="syncStatusText">共有データへ接続中…</span>
+        </div>
       </div>
       <div class="balance-card">
         <span>現在のプール残高</span>
@@ -793,9 +797,16 @@
 
     function setStatus(type, text) {
       const box = document.getElementById("syncStatus");
+      const label = document.getElementById("syncStatusText");
+
+      if (!box || !label) {
+        console.log("[同期状態]", text);
+        return;
+      }
+
       box.classList.remove("connected", "error");
       if (type) box.classList.add(type);
-      document.getElementById("syncStatusText").textContent = text;
+      label.textContent = text;
     }
 
     function yen(value) {
@@ -896,6 +907,7 @@ ${message}`);
       });
 
       renderAll();
+      clearAppMessage();
       setStatus("connected", `共有データ同期済み・${new Date().toLocaleTimeString("ja-JP")}`);
     }
 
